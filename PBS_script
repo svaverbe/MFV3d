@@ -1,0 +1,8 @@
+#!/bin/bash -l 
+#PBS -l nodes=1:ppn=1:ivybridge,walltime=100:00:00
+cd $PBS_O_WORKDIR
+module load intel/2014a
+mpirun -np 1 MFV3d
+#PBS -e errfile 
+echo "program completed"
+
