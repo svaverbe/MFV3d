@@ -385,7 +385,7 @@
          vyrs1,vyrs2,vzls1,vzrs1,vzls2,vzrs2,rhols1,rhols2,rhors1, &
          rhors2,byls1,byls2,byrs1,byrs2,bzls1,bzls2,bzrs1,bzrs2, &
          Sm,pts,Sml,Smr,els1,els2,ers1,ers2,tiny,psi(nmax)
-         double precision:: bxc,psil,psir,psic,pbar,psiflux
+         double precision::bxc,psil,psir,psic,pbar,psiflux
          integer::i,j
 
          tol=1.0d-10
@@ -395,7 +395,7 @@
          vxl=uleft(2)/rhol
          vyl=uleft(3)/rhol
          vzl=uleft(4)/rhol
-         psil=psi(i)
+         psil=psi(i)/am(i)
          el=uleft(5)
          bxl=uleft(6)
          byl=uleft(7)
@@ -416,7 +416,7 @@
          vxr=uright(2)/rhor
          vyr=uright(3)/rhor
          vzr=uright(4)/rhor
-         psir=psi(j)
+         psir=psi(j)/am(j)
          er=uright(5)
          bxr=uright(6)
          byr=uright(7)
@@ -433,24 +433,24 @@
                 
          prt=pr+(bxr**2+byr**2+bzr**2)/2
 
-         bl=dsqrt((byl**2+bxl**2+bzl**2)/rhol)
-         br=dsqrt((byr**2+bxr**2+bzr**2)/rhor)
-         valfvenxl=dsqrt(bxl**2/rhol)
-         valfvenxr=dsqrt(bxr**2/rhor)
-
+         bl=dsqrt((byl**2+bxl**2+bzl**2+tiny)/rhol)
+         br=dsqrt((byr**2+bxr**2+bzr**2+tiny)/rhor)
+         valfvenxl=dsqrt((bxl**2+tiny)/rhol)
+         valfvenxr=dsqrt((bxr**2+tiny)/rhor)
+         
          cl=dsqrt(al**2+bl**2+dsqrt((al**2+bl**2)**2-  &
            4*al**2*valfvenxl**2))/dsqrt(2.0d0)
 
          cr=dsqrt(ar**2+br**2+dsqrt((ar**2+br**2)**2-  &
            4*ar**2*valfvenxr**2))/dsqrt(2.0d0)
-
+           
  ! fast magnetosonic wave speeds for the left and right state
 
          cmax=dmax1(cl,cr)
          
          Sl=dmin1(vxl,vxr)-cmax
          Sr=dmax1(vxl,vxr)+cmax
-                 
+         
          if ( iDedner .eqv. .true. ) then
          bxc=(bxl+bxr)/2-(psir-psil)/(2*cmax)
          psic=(psil+psir)/2-cmax*(bxr-bxl)/2
@@ -499,7 +499,7 @@
          if ( (.not. barotropic) .eqv. .true. ) then                        
          els1=((Sl-vxl)*el-plt*vxl+pts*Sm+bxc*(vxl*bxc+vyl*byl &
          +vzl*bzl-vxls1*bxc-vyls1*byls1-vzls1*bzls1))/(Sl-Sm)
-            endif
+          endif
                                  
          test=rhor*(Sr-vxr)*(Sr-Sm)-bxc**2
                                  
@@ -758,3 +758,7 @@
          return
          
          end
+         
+         
+         
+         

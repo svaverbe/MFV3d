@@ -13,9 +13,10 @@
           
       double precision::uleft(nv),uright(nv), &
       uleftr(nv),urightr(nv),normnij,F(nv),dx,dy,dz,d, &
-      nij(ndim),ivel(ndim),ax,u(nmax,nv),S(nv),Sgrav(nv),gradpsi(n_lower:n_upper,ndim), &
-      bxc,psic,wprim(nmax,nv),psi(nmax),t1,u2,psiflux, &
-      eps,dgradw(ndim),gaccxi,gaccyi,gacczi,dzetai, &
+      nij(ndim),ivel(ndim),ax,u(nmax,nv),S(nv),Sgrav(nv), &
+      gradpsi(n_lower:n_upper,ndim),bxc,psic,wprim(nmax,nv), &
+      psi(nmax),t1,u2,psiflux,eps,dgradw(ndim),gaccxi, &
+      gaccyi,gacczi,dzetai, &
       h5i,h5,dwij1,dwij2,phii,help(ndim), &
 	  cij(ndim),cji(ndim),dumVudot(1:nv,1:nmax), &
       dxinterface,dyinterface,dzinterface,Fpsi
@@ -97,19 +98,19 @@
 
           if ( iLagrangian .eqv. .true. ) then
           
-!          ivel(1)=(wprim(i,2)+wprim(j,2))/2
-!          ivel(2)=(wprim(i,3)+wprim(j,3))/2
-!          ivel(3)=(wprim(i,4)+wprim(j,4))/2
+          ivel(1)=(wprim(i,2)+wprim(j,2))/2
+          ivel(2)=(wprim(i,3)+wprim(j,3))/2
+          ivel(3)=(wprim(i,4)+wprim(j,4))/2
 
 ! velocity of the interface between particles
  
-          dxinterface=h(i)*dx/(h(i)+h(j))
-          dyinterface=h(i)*dy/(h(i)+h(j))
-          dzinterface=h(i)*dz/(h(i)+h(j))
+!         dxinterface=h(i)*dx/(h(i)+h(j))
+!         dyinterface=h(i)*dy/(h(i)+h(j))
+!         dzinterface=h(i)*dz/(h(i)+h(j))
           
-          ivel(1)=wprim(i,2)+(wprim(j,2)-wprim(i,2))*dxinterface*dx/d**2
-          ivel(2)=wprim(i,3)+(wprim(j,3)-wprim(i,3))*dyinterface*dy/d**2
-          ivel(3)=wprim(i,4)+(wprim(j,4)-wprim(i,4))*dzinterface*dz/d**2
+!         ivel(1)=wprim(i,2)+(wprim(j,2)-wprim(i,2))*dxinterface*dx/d**2
+!         ivel(2)=wprim(i,3)+(wprim(j,3)-wprim(i,3))*dyinterface*dy/d**2
+!         ivel(3)=wprim(i,4)+(wprim(j,4)-wprim(i,4))*dzinterface*dz/d**2
 !          
           ax=nij(1)*ivel(1)+nij(2)*ivel(2)+nij(3)*ivel(3)               
           else                  
@@ -234,6 +235,7 @@
          endif
          
          enddo
+         
                  
          do i=n_lower,n_upper
                 
@@ -244,7 +246,8 @@
 
          if ( iDedner .eqv. .true. ) then
          
-         mypsidot(i)=-Fpsi-wprim(i,1)*myvsigmax(i)**2*mydivb(i)/4
+ !       mypsidot(i)=-Fpsi-wprim(i,1)*myvsigmax(i)**2*mydivb(i)/4
+         mypsidot(i)=-Fpsi-wprim(i,1)*ch**2*mydivb(i)
  ! Hyperbolic term
  !       mypsidot(i)=mypsidot(i)-(ch/cp)**2*psi(i)
          mypsidot(i)=mypsidot(i)-psi(i)/mytau(i)
@@ -280,6 +283,8 @@
 
         if ( igrav .eqv. .true. ) then
         
+        Sgrav(:)=0.0d0
+        
         if ( exterior(i) .eqv. .true. ) then
         gaccxi=0.0d0
         gaccyi=0.0d0
@@ -298,7 +303,7 @@
 	    wprim(i,3)*gaccyi+wprim(i,4)*gacczi)+ &
 	   (gaccxi*help(1)+gaccyi*help(2)+gacczi*help(3))/vol(i))
         endif
-
+        
 ! source terms originating from self-gravity
 
         myVudot(2:4,i)=myVudot(2:4,i)-Sgrav(2:4)

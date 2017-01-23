@@ -18,9 +18,6 @@
 
 !     Expand root volume to enclose all particles.
 !     --------------------------------------           
-!     ------------------------------
-!     Find maximum coordinate value.
-!     ------------------------------
       
       XYZMAX = 0.0d0
       RSIZE=1.0d0

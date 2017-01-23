@@ -1,4 +1,4 @@
-      SUBROUTINE TSTEP(wprim,psi,dt)
+      SUBROUTINE TSTEP(wprim,u,psi,dt)
           
  ! calculates the system time step
           
@@ -13,11 +13,11 @@
 
       integer::i,j,idx,iopt,ierr
       double precision::cmax,cfl,Li,dx,dy,dz,valfveni,vmhdi, &
-      bij1,bij2,eps2,wprim(nmax,nv),dti1,atot,dtkin,mych,vfpsi, &
-      vmhdj,valfvenj,vsig,psi(nmax)
+      bij1,bij2,eps2,wprim(nmax,nv),dti1,mych,vfpsi, &
+      vmhdj,valfvenj,vsig,psi(nmax),u(nmax,nv),dtkin
 
       eps2=1.0d-10  
-      cfl=0.2d0
+      cfl=0.1d0
       dt=1000.0d0
       iopt=1
           
@@ -71,8 +71,9 @@
       dsqrt((cs(idx)**2+valfvenj**2)**2- &
       4*cs(idx)**2*bij2**2/wprim(idx,1)))/dsqrt(2.0d0)     
       
-      vsig=vmhdi+vmhdj-dmin1(0.0d0,(-dx*(wprim(i,2)-wprim(idx,2))-dy*( &
-      wprim(i,3)-wprim(idx,3))-dz*(wprim(i,4)-wprim(idx,4)))/dsqrt(dx**2+dy**2+dz**2))
+      vsig=(vmhdi+vmhdj-dmin1(0.0d0,(-dx*(wprim(i,2)-wprim(idx,2))-dy*( &
+      wprim(i,3)-wprim(idx,3))-dz*(wprim(i,4)-wprim(idx,4))) &
+      /dsqrt(dx**2+dy**2+dz**2)))/2
             
       myvsigmax(i)=dmax1(myvsigmax(i),vsig)
    
@@ -80,9 +81,11 @@
       
 ! timescale for damping the scalar potential in the Dedner scheme
 
-      vfpsi=dsqrt(cs(i)**2+valfveni**2+(2*psi(i)/am(i)/myvsigmax(i))**2)
+!     vfpsi=dsqrt(cs(i)**2+valfveni**2+(2*psi(i)/am(i)/myvsigmax(i))**2)
       
-      cmax=dmax1(myvsigmax(i)/2,vfpsi)
+!     cmax=dmax1(myvsigmax(i)/2,vfpsi)
+
+      cmax=myvsigmax(i)
 
       if ( iDedner .eqv. .true. ) then
       mych=dmax1(mych,cmax)
@@ -90,14 +93,15 @@
 
       Li=(3*vol(i)/pi/4)**(1.0d0/3.0d0)
       
-      mytau(i)=Li/cmax/cp
+!     mytau(i)=Li/cmax/cp
                           
-      mydti(i)=2*Li/myvsigmax(i)
+      mydti(i)=Li/myvsigmax(i)
      
       if ( igrav .eqv. .true. ) then
 
-      atot=dsqrt(sum(Vudot(i,2:4)**2))/vol(i)
-      dtkin=dsqrt(Li/atot)
+      dtkin=dsqrt((u(i,2)**2+u(i,3)**2+u(i,4)**2+tiny)/ &
+      (Vudot(i,2)**2+Vudot(i,3)**2+Vudot(i,4)**2+tiny))
+      
       mydti(i)=dmin1(mydti(i),dtkin)
 
       endif
@@ -113,10 +117,19 @@
       MPI_COMM_WORLD,ierr)  
       endif
       
-    
+      do i=n_lower,n_upper
+      
+      Li=(3*vol(i)/pi/4)**(1.0d0/3.0d0)
+      
+      mytau(i)=Li/ch/cp
+     
+      enddo
+      
       do i=1,n
 
       Li=(3*vol(i)/pi/4)**(1.0d0/3.0d0)
+      
+ !    write(6,*) i,myrank,x(i,:),Li,mytau(i)
 
       if ( iDedner .eqv. .true. ) then
       dti1=dmin1(dti(i),Li/ch)

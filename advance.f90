@@ -18,7 +18,7 @@
          
 ! Drift-Kick-Drift scheme for advancing the particles
 
-        call TSTEP(wprim,psi,dt1)
+        call TSTEP(wprim,u,psi,dt1)
 
         dth1=dt1/2
          
@@ -64,13 +64,13 @@
         enddo
 
         endif 
-               
+       
         CALL build_linked_list
-
+        
 ! reconstructs the linked list
 
         CALL hvol(wprim)
-		
+       
 ! geometric quantities
 
         if ( igrav .eqv. .true. ) then
@@ -78,7 +78,7 @@
         endif
 
         endif
-
+        
         if ( iLagrangian .eqv. .true. ) then
 
         CALL RMDmatrices
@@ -93,7 +93,7 @@
         endif
 
         endif
-
+        
 ! renormalized kernel derivatives
 
         if ( useprimitive .eqv. .true. ) then
@@ -103,15 +103,15 @@
         endif
         
 ! evaluation of function gradients
-
+       
         if ( useprimitive .eqv. .true. ) then
         CALL find_limiters_w(wprim)
         else
         CALL find_limiters_u(u)
         endif
-
+        
         CALL CALCDOTS(u,wprim,psi) 
-
+        
 ! KICK step for the conservative variables
 
         do i=1,n
@@ -129,7 +129,7 @@
         enddo
         endif
                 
-        if (iDedner .eqv. .true. ) then
+        if ( iDedner .eqv. .true. ) then
         psi1(i)=psi(i)+dt1*psidot(i)
         endif
                   
@@ -139,6 +139,18 @@
               
         call conservative_to_primitive(i,u1(i,:), &
         wprim1(i,:))
+        
+        if ( wprim1(i,1) .lt. 0.0d0 ) then
+        write(6,*) 'stop: negative density'
+        write(6,*) i,x(i,:),h(i),u(i,5)/vol(i)
+        stop
+        endif
+        if ( wprim1(i,5) .lt. 0.0d0 ) then
+        write(6,*) 'stop: negative pressure'
+        write(6,*) i,x(i,:),h(i),u(i,5)/vol(i)
+        stop
+        endif
+        
         if ( barotropic .eqv. .true. ) then
         cs(i)=dsqrt(wprim1(i,5)/wprim1(i,1))
         else
@@ -146,7 +158,7 @@
         endif
                    
         enddo
-                     
+        
 ! renormalized kernel derivatives
 
         if ( useprimitive .eqv. .true. ) then
@@ -162,7 +174,7 @@
         else
         CALL find_limiters_u(u1)
         endif
-
+        
         if ( igrav .eqv. .true. ) then
         CALL MKTREE(wprim1)
         else
@@ -170,9 +182,9 @@
         am(i)=vol(i)*wprim1(i,1) 
         enddo
         endif
-
+        
         CALL CALCDOTS(u1,wprim1,psi1) 
-
+        
 ! KICK step for the conservative variables using a Runge-Kutta 
 
         do i=1,n
@@ -200,6 +212,17 @@
         
         call conservative_to_primitive(i,u2(i,:),wprim2(i,:))
         
+        if ( wprim2(i,1) .lt. 0.0d0 ) then
+        write(6,*) 'stop: negative density'
+        write(6,*) i,x(i,:),h(i),u(i,1)/vol(i)
+        stop
+        endif
+        if ( wprim2(i,5) .lt. 0.0d0 ) then
+        write(6,*) 'stop: negative pressure'
+        write(6,*) i,x(i,:),h(i),u(i,1)/vol(i)
+        stop
+        endif
+        
         if ( barotropic .eqv. .true. ) then
         cs(i)=dsqrt(wprim2(i,5)/wprim2(i,1))
         else
@@ -207,7 +230,7 @@
         endif
 
         enddo
-                
+        
         u(:,:)=u2(:,:)
         wprim(:,:)=wprim2(:,:)
         if ( iDedner ) then
@@ -256,20 +279,20 @@
         enddo
 
         endif 
-
-       CALL build_linked_list
-
+        
+        CALL build_linked_list
+        
 ! reconstructs the link list
-       CALL hvol(wprim)
-       if ( igrav .eqv. .true. ) then
-       call MKTREE(wprim)
-       endif
+        CALL hvol(wprim)
+        if ( igrav .eqv. .true. ) then
+        call MKTREE(wprim)
+        endif
           
       endif
              
       if ( myrank .eq. 0 ) then
-      write(2,*) 'step= ',NIT,' t=',t,' dt=',dt1         
-      write(6,*) 'step= ',NIT,' t=',t,' dt=',dt1 
+      write(2,fmt="(A,I8,A,ES12.5,A,ES12.5)") 'step= ',NIT,' t=',t,' dt=',dt1         
+      write(6,fmt="(A,I8,A,ES12.5,A,ES12.5)") 'step= ',NIT,' t=',t,' dt=',dt1 
       endif
             
       RETURN
@@ -307,8 +330,8 @@
                   
       subroutine conservative_to_primitive(i,ui,wi)
                   
-! converts conservative to primitive variables:(rho,rho*vx,rho*vy,e,bx,by,rho*psi) to 
-! (rho,vx,vy,p,bx,by)
+! converts conservative to primitive variables:(rho,rho*vx,rho*vy,rho*vz,e,bx,by,bz) to 
+! (rho,vx,vy,vz,p,bx,by,bz)
                   
       use wp3d_h
                                   

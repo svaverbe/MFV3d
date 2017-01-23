@@ -12,7 +12,8 @@
       double precision::dx,dy,dz,tiny, &
       kappa(nv),dx2,dy2,dz2,maxwreci(nv),maxwi(nv), &
       minwreci(nv),minwi(nv),wrec(nv),dwij(nv),psiij(nv)
-      double precision::dumlim(nv,1:nmax)
+      double precision::dumlim(nv,1:nmax),kappamin,kappamax, &
+      normgradw
 
       kappa(1)=1.0d0
       kappa(2)=1.0d0
@@ -22,6 +23,10 @@
       kappa(6)=1.0d0
       kappa(7)=1.0d0
       kappa(8)=1.0d0
+      kappamin=1.0d0
+      kappamax=2.0d0
+      
+      iopt=1
  
       tiny=1.0d-10
                                  
@@ -30,13 +35,11 @@
       case (1) 
 
       do i=n_lower,n_upper
-              
-      mylim(:,i)=1.0d25
-                                          
-      maxwreci(:)=0.0d0
+                          
+      maxwreci(:)=-1.0d+25
       minwreci(:)=1.0d+25
-      maxwi(:)=0.0d0
-      minwi(:)=1d+25
+      maxwi(:)=-1.0d+25
+      minwi(:)=1.0d+25
       
       call LLN(i,iopt,h(i))
          
@@ -72,8 +75,8 @@
       enddo
 
       do k=1,nv
-     
-      mylim(k,i)=dmin1(lim(i,k),1.0d0,kappa(k)*(maxwi(k)-wprim(i,k))/ &
+      
+      mylim(k,i)=dmin1(1.0d0,kappa(k)*(maxwi(k)-wprim(i,k))/ &
       (maxwreci(k)-wprim(i,k)+tiny),kappa(k)*(wprim(i,k)-minwi(k))/ &
       (wprim(i,k)-minwreci(k)+tiny))
 
@@ -84,12 +87,12 @@
       case (2)
          
       do i=n_lower,n_upper
+      
+      mylim(:,i)=1.0d+25
 	  
       call LLN(i,iopt,h(i))
                  
-      mylim(:,i)=1.0d25
-
-      maxwi(:)=0.0d0
+      maxwi(:)=-1.0d+25
       minwi(:)=1.0d+25
         
       do k=1,nbn
@@ -104,6 +107,7 @@
       enddo
                   
       enddo
+      
                   
       do k=1,nbn
                   
@@ -137,12 +141,71 @@
       psiij(l)=(minwi(l)-wprim(i,l))/dwij(l)   
       endif  
       endif
+      
       enddo
 
       mylim(:,i)=dmin1(mylim(:,i),psiij(:),1.0d0)
 
       endif
-      enddo               
+      
+      enddo  
+      
+      enddo
+      
+      case (3)
+      
+      do i=n_lower,n_upper
+                                
+!     maxwreci(:)=-1.0d+25
+!     minwreci(:)=1.0d+25
+      maxwi(:)=-1.0d+25
+      minwi(:)=1.0d+25
+      
+      call LLN(i,iopt,h(i))
+         
+      do k=1,nbn
+          
+      idx=nn(k)
+	  
+      dx=x(idx,1)-x(i,1)
+      dy=x(idx,2)-x(i,2)
+      dz=x(idx,3)-x(i,3)
+
+      if ( iperiodic .eqv. .true. ) then
+      call modbound(dx,dy,dz)
+      endif
+
+      dx2=dx/2
+      dy2=dy/2
+      dz2=dz/2
+          
+      do l=1,nv
+          
+!     wrec(l)=wprim(i,l)+gradw(i,l,1)*dx2+ &
+!     gradw(i,l,2)*dy2+gradw(i,l,3)*dz2
+
+!     maxwreci(l)=dmax1(maxwreci(l),wrec(l))
+!     minwreci(l)=dmin1(minwreci(l),wrec(l))
+          
+      maxwi(l)=dmax1(maxwi(l),wprim(idx,l))
+      minwi(l)=dmin1(minwi(l),wprim(idx,l))
+          
+      enddo
+                 
+      enddo
+
+      do k=1,nv
+      
+      kappa(k)=dmax1(kappamin,kappamax*dmin1(1.0d0,ncondcrit/myconditionnumber(i)))
+      
+      normgradw=dsqrt(sum(gradw(i,k,:)**2))
+     
+      mylim(k,i)=dmin1(1.0d0,kappa(k)*(maxwi(k)-wprim(i,k))/ &
+      (normgradw*h(i)+tiny),kappa(k)*(wprim(i,k)-minwi(k))/ &
+      (normgradw*h(i)+tiny))
+      
+      enddo
+
       enddo
 
       end select
@@ -178,7 +241,8 @@
 
       kappa(:)=1.0d0
       tiny=1.0d-10
-	  iopt=2
+      
+	  iopt=1
 
       select case (limtype) 
 
@@ -186,11 +250,10 @@
 
       do i=n_lower,n_upper
                       
-      mylim(:,i)=1.0d25
-      maxureci(:)=0.0d0
+      maxureci(:)=-1.0d+25
       minureci(:)=1.0d+25
-      maxui(:)=0.0d0
-      minui(:)=1d+25
+      maxui(:)=-1.0d+25
+      minui(:)=1.0d+25
 	  
       call LLN(i,iopt,h(i))
           
@@ -227,7 +290,7 @@
 
       do k=1,nv
 
-      mylim(k,i)=dmin1(mylim(k,i),1.0d0,kappa(k)*(maxui(k)-u(i,k))/ &
+      mylim(k,i)=dmin1(1.0d0,kappa(k)*(maxui(k)-u(i,k))/ &
       (maxureci(k)-u(i,k)+tiny),kappa(k)*(u(i,k)-minui(k))/ &
       (u(i,k)-minureci(k)+tiny))
 
@@ -237,13 +300,13 @@
       case (2)
                   
       do i=n_lower,n_upper
+      
+      mylim(:,i)=1.0d+25
 	  
       call LLN(i,iopt,h(i))
-               
-      mylim(:,i)=1.0d25
-                             
-      maxui(:)=0.0d0
-      minui(:)=1d+25
+                  
+      maxui(:)=-1.0d+25
+      minui(:)=1.0d+25
           
       do k=1,nbn
           
@@ -289,16 +352,16 @@
       else    
       psiij(l)=(minui(l)-u(i,l)/vol(i))/duij(l)     
       endif
-
       endif
                   
       enddo
-
-      endif
 
       mylim(:,i)=dmin1(mylim(:,i),psiij(:),1.0d0)
+      
+      endif
                   
       enddo
+      
                      
       enddo
                   

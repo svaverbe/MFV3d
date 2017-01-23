@@ -6,6 +6,11 @@
         integer::i
         double precision::rhoi,k1,k2,k3
                 
+                
+        select case (eostype) 
+        
+        case (1)
+        
         k1=c0**2/rhocrit1**(2.0d0/5.0d0)
         k2=k1*rhocrit2**(1.0d0/4.0d0)
         k3=k2*rhocrit3*(1.15d0-(5.0d0/3.0d0))
@@ -31,6 +36,13 @@
         gam(i)=5.0d0/3.0d0              
         pbar=k3*rhoi**gam(i)
         endif
+        
+        case (2)
+        
+ !       gam(i)=1.0d0
+        pbar=c0**2*rhoi*dsqrt(1.0d0+(rhoi/rhocrit1)**(4.0d0/3.0d0))
+        
+        end select 
         
         return
 

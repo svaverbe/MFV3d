@@ -11,7 +11,8 @@
           
       double precision::u(nmax,nv),wprim(nmax,nv), &
       uleft(nv),uright(nv),gradleft(nv),gradright(nv)
-      double precision::wleft(nv),wright(nv)
+      double precision::wleft(nv),wright(nv),wleftlim(nv), &
+      wrightlim(nv)
       double precision::dx,dy,dz,dx2,dy2,dz2
 
       dx=x(j,1)-x(i,1)
@@ -22,36 +23,44 @@
       call modbound(dx,dy,dz)      
       endif
                   
-!     dx2=dx/2
-!     dy2=dy/2
-!     dz2=dz/2
+!     dx2=h(i)*dx/(h(i)+h(j))
+!     dy2=h(i)*dy/(h(i)+h(j))
+!     dz2=h(i)*dz/(h(i)+h(j))
 
-      dx2=h(i)*dx/(h(i)+h(j))
-      dy2=h(i)*dy/(h(i)+h(j))
-      dz2=h(i)*dz/(h(i)+h(j))
-                                  
+      dx2=dx/2
+      dy2=dy/2
+      dz2=dz/2
+              
       if ( useprimitive .eqv. .true.) then
                   
       do k=1,nv
-                  
+      
+! first apply a pairwise limiter to the gradients
+          
       gradleft(k)=gradw(i,k,1)*dx2+ &
       gradw(i,k,2)*dy2+gradw(i,k,3)*dz2
           
       gradright(k)=gradw(j,k,1)*dx2+ &
       gradw(j,k,2)*dy2+gradw(j,k,3)*dz2
                   
-      if ( gradleft(k)*gradright(k) .le. 0.0d0 ) then
-      wleft(k)=wprim(i,k)
-      wright(k)=wprim(j,k)
-      else
+!     if ( gradleft(k)*gradright(k) .le. 0.0d0 ) then
+ !    wleft(k)=wprim(i,k)
+!     wright(k)=wprim(j,k)
+!     else
       wleft(k)=wprim(i,k)+lim(i,k)*gradleft(k)
       wright(k)=wprim(j,k)-lim(j,k)*gradright(k)
-      endif
-                  
+!     endif
+
+      call pairwiselimiter(i,j,k,wprim,wleft(k),wleftlim(k))
+      call pairwiselimiter(i,j,k,wprim,wright(k),wrightlim(k))
+             
       enddo
                               
-      call primitive_to_conservative(i,wleft,uleft)
-      call primitive_to_conservative(j,wright,uright)
+!     call primitive_to_conservative(i,wleft,uleft)
+!     call primitive_to_conservative(j,wright,uright)
+
+      call primitive_to_conservative(i,wleftlim,uleft)
+      call primitive_to_conservative(j,wrightlim,uright)
                   
       else
                   
@@ -77,6 +86,73 @@
           
       return
          
+      end
+      
+      
+      subroutine pairwiselimiter(i,j,k,wprim,w,wlim)
+      
+      use wp3d_h
+      
+      integer::i,j,k
+      double precision::wprim(nmax,nv),w,wlim,phimin,phimax
+      double precision::psi1,psi2,dx,dy,dz,phileft,phiright
+      double precision::phiplus,phiminus,delta1,delta2,phiij
+      double precision::signarg
+      
+      psi1=0.5d0
+      psi2=0.25d0
+    
+      phileft=wprim(i,k)
+      phiright=wprim(j,k)
+      
+      phimin=dmin1(phileft,phiright)
+      phimax=dmax1(phileft,phiright)
+      
+      delta1=psi1*dabs(phileft-phiright)
+      delta2=psi2*dabs(phileft-phiright)
+      
+      phiij=phileft+(phiright-phileft)/2
+      
+!     phiij=phileft+h(i)*(phiright-phileft)/(h(i)+h(j))
+
+      if ( signarg(phimin-delta1) .eq. signarg(phimin) ) then
+      phiminus=phimin-delta1
+      else
+      phiminus=phimin/(1.0d0+delta1/dabs(phimin))
+      endif
+      
+      if ( signarg(phimax+delta1) .eq. signarg(phimax) ) then
+      phiplus=phimax+delta1
+      else
+      phiplus=phimax/(1.0d0+delta1/dabs(phimax))
+      endif
+      
+      if ( phileft .eq. phiright ) then
+      wlim=phileft
+      else
+      if ( phileft .lt. phiright ) then
+      wlim=dmax1(phiminus,dmin1(phiij+delta2,w))
+      else
+      wlim=dmin1(phiplus,dmax1(phiij-delta2,w))
+      endif
+      endif
+      
+      return
+      end
+      
+      
+      double precision function signarg(arg)
+      
+      double precision::arg
+      
+      if ( arg .eq. 0.0d0 ) then
+      signarg=1.0d0
+      else
+      signarg=arg/dabs(arg)
+      endif
+      
+      return
+      
       end
 	  
 	  

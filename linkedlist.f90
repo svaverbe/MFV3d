@@ -5,9 +5,9 @@
 ! construction of a Linked list for neighbour searching on a single 3D grid
          
       LOGICAL::EXC
-      double precision::hpav
+      double precision::hpav,h1,h2,h3
     
-      INTEGER::i,k,l,m,npout
+      INTEGER::i,k,l,m
 
 ! Determine system box and mean HP:
           XMIN=1.E30
@@ -30,7 +30,7 @@
                   
       HPAV=HPAV/FLOAT(N)
       HH=HPAV*1.3d0
-
+      
 !     (This should give near-optimal search times)
 !     6/29/98: The factor of 1.3 seems to give search times for typical
 !    cases which are about 10-20% shorter than if HH=HPAV.
@@ -45,25 +45,16 @@
 ! (Note that this version assumes centering on the origin!)
       EXC=.FALSE.
       IF (NCX.GT.NCMX) THEN 
-         write(6,*) &
-         'Warning! NELIST: EXC TRUE in x-direction',NCX,NCMX
-         EXC=.TRUE.
-         XMIN = -FLOAT(NCMX/2)*HH
-         NCX=NCMX
+      EXC=.TRUE.
+      NCX=NCMX
       ENDIF
       IF (NCY.GT.NCMY) THEN 
-         write(6,*) &
-         'Warning! NELIST: EXC TRUE in y-direction',NCY,NCMY
-         EXC=.TRUE.
-         YMIN = -FLOAT(NCMY/2)*HH
-         NCY=NCMY
+      EXC=.TRUE.
+      NCY=NCMY
       ENDIF
-        IF (NCZ.GT.NCMZ) THEN
-         write(6,*) &
-         'Warning! NELIST: EXC TRUE in z-direction',NCZ,NCMZ
-         EXC=.TRUE.
-         ZMIN = -FLOAT(NCMZ/2)*HH
-         NCZ=NCMZ
+      IF (NCZ.GT.NCMZ) THEN
+      EXC=.TRUE.
+      NCZ=NCMZ
       ENDIF
 
 ! Initialize Head-Of-Cell array:
@@ -74,44 +65,31 @@
           ENDDO
         ENDDO
       ENDDO
+      
+      IF (EXC) THEN
+      H1=dabs((xmax-xmin)/dfloat(ncx-1))
+      H2=dabs((ymax-ymin)/dfloat(ncy-1))
+      H3=dabs((zmax-zmin)/dfloat(ncz-1))
+      HH=DMAX1(H1,H2,H3)
+      ENDIF
 
 ! Build linked lists (cf. Hockney and Eastwood):
-      NPOUT=0
-      IF (EXC) THEN
-!   (test for particles outside of the grid)
-         DO I=1,N
-            K=floor((X(I,1)-XMIN)/HH)
-            L=floor((X(I,2)-YMIN)/HH)
-            M=floor((X(I,3)-ZMIN)/HH)
-            IF ((K.LT.0).OR.(K.GT.NCMX-1).OR. &
-                (L.LT.0).OR.(L.GT.NCMY-1).OR. &
-                (M.LT.0).OR.(M.GT.NCMZ-1)) THEN
-               OUT(I)=.TRUE.
-               NPOUT=NPOUT+1
-            ELSE
-               OUT(I)=.FALSE.
-               LL(I)=HOC(K,L,M)
-               HOC(K,L,M)=I
-            ENDIF
-         ENDDO
-      ELSE
+      
 !   (no need to check for out of bounds indices)
          DO I=1,N
-          K=floor((X(I,1)-XMIN)/HH)
-          L=floor((X(I,2)-YMIN)/HH)
-          M=floor((X(I,3)-ZMIN)/HH)
-  !       K=INT((X(I,1)-XMIN)/HH)+1
-  !       L=INT((X(I,2)-YMIN)/HH)+1
-  !       M=INT((X(I,3)-ZMIN)/HH)+1
-          OUT(I)=.FALSE.
-          LL(I)=HOC(K,L,M)
-          HOC(K,L,M)=I
+         if ( iperiodic ) then
+         K=floor((X(I,1)-XMIN)/HH)
+         L=floor((X(I,2)-YMIN)/HH)
+         M=floor((X(I,3)-ZMIN)/HH)
+         else
+         K=INT((X(I,1)-XMIN)/HH)+1
+         L=INT((X(I,2)-YMIN)/HH)+1
+         M=INT((X(I,3)-ZMIN)/HH)+1
+         endif
+         LL(I)=HOC(K,L,M)
+         HOC(K,L,M)=I
          ENDDO
-      ENDIF
-      
-      IF (NPOUT.NE.0) WRITE (6,fmt="(A,I5)") &
-          'NELIST: WARNING !!! NPOUT=',NPOUT
-
+     
       RETURN
       END  subroutine build_linked_list
 	  

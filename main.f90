@@ -6,7 +6,7 @@
         integer::ncmx,ncmy,ncmz,nopt,nv
         integer::nquad,nsubc,null,mxcell,incell, &
         mxnode,ncell,nstep,nhp,inittype,solverchoice, &
-        imtype,nghost,root,limtype,divbtype,gradtype,maxnproc
+        imtype,nghost,root,limtype,divbtype,gradtype,maxnproc,rmdtype
         parameter(ncmx=250,ncmy=250,ncmz=250,nopt=32,nv=8,maxnproc=50)
         parameter(ntab=100000,nmax=500000,nghost=2)  
         parameter(ndim=3,nhp=3,nstep=10)
@@ -23,7 +23,8 @@
         double precision,allocatable::myh(:),myvol(:), &
         mydivb(:),myphi(:),mygrad(:,:,:),myVudot(:,:), &
         myam(:),mypsidot(:),myA(:,:,:),mydzeta(:), &
-        mylim(:,:),mydti(:),mytau(:),myvsigmax(:)
+        mylim(:,:),mydti(:),mytau(:),myvsigmax(:), &
+        myconditionnumber(:)
         
         double precision,allocatable::rcrit2(:),quad(:,:)
         double precision,allocatable::mid(:,:),clsize(:)
@@ -46,11 +47,12 @@
         dwdhtab(ntab),eta2,pi,t,tf,mdt,etamax, G, &
         tp,tprin,racc,rhocrit1,rhocrit2,rhocrit3,rhocrit4,ch,cp, &
         hr,c0,s0,MJR,epsa,epsr,Kpoly,trelax,ufloor,dfloor, &
-        pfloor,pbet,del,rho1,rtaper,Hz,beta,T0,voltot,totmass
-
+        pfloor,pbet,del,rho1,rtaper,Hz,beta,T0,voltot,totmass, &
+        ncondcrit
+      
         integer*4::nsink,nacc,nit,ndump,periodictypex, &
         periodictypey,periodictypez,hchoice,setupchoice, &
-        outputtype,typeini
+        outputtype,typeini,eostype
         
         integer*4::myrank,n_lower,n_upper
         integer*4::ilen1(0:maxnproc-1),idisp1(0:maxnproc-1)
@@ -83,8 +85,10 @@
         include 'mpif.h'
                 
         double precision::u(nmax,nv),wprim(nmax,nv),psi(nmax)
+        double precision::starttime,endtime,walltime,maxwalltime,pbar
         
-        integer::nsim,i,p,ierr
+        integer*4::nsim,i,p,ierr
+        integer*4::status(MPI_STATUS_SIZE)
         character*1::ndx1
                 
  ! initial setting of parameters 
@@ -95,8 +99,10 @@
         dfloor=1.0d-6
         pfloor=1.0d-6
         etamax=0.01d0
-        cp=0.1d0
+!       cp=0.1d0
+        cp=1.0d0
         theta=0.7d0
+        ncondcrit=100.0d0
                 
         useprimitive=.true.
         hvar=.true.
@@ -112,8 +118,12 @@
 ! index number of the simulation
         read(1,"(11X,I6)") outputtype
 ! output format: 1: SPLASH format 2: silo format 3: vtr format 
+        read(1,"(12X,ES25.5)") maxwalltime
+! maximum walltime in seconds
         read(1,"(8X,I6)") hchoice
 ! smoothing length calculation 1: fixed number of neighbours 2: iterative procedure
+        read(1,"(8X,I6)") rmdtype 
+! RMD calculation: Hopkins et al. 2: Gaburov and Nitadori
         read(1,"(13X,I6)") solverchoice
 ! Riemann solver choice 1: HLL solver 2: HLLD solver
         read(1,"(8X,I6)") limtype 
@@ -151,7 +161,7 @@
 
         tp=0.0d0
         NIT=0
-        mdt=1.0d-6
+        mdt=1.0d-10
                 
 ! setup of the initial conditions 
 
@@ -186,8 +196,32 @@
 ! First compute neighbour lists and 
 ! geometric quantities
 
-        CALL build_linked_list 
+        if ( restart ) then
+        
+        open(unit=1,file="restartdump.dat")
+        
+        do i=1,n
+        
+! restart file 
 
+        if ( iDedner ) then
+        read(12,fmt="(14ES25.15)") x(i,1),x(i,2),x(i,3),wprim(i,2), &
+        wprim(i,3),wprim(i,4),wprim(i,6),wprim(i,7),wprim(i,8),am(i),h(i), &
+        wprim(i,5),wprim(i,1),psi(i)
+        else
+        read(12,fmt="(13ES25.15)") x(i,1),x(i,2),x(i,3),wprim(i,2), &
+        wprim(i,3),wprim(i,4),wprim(i,6),wprim(i,7),wprim(i,8),am(i),h(i), &
+        wprim(i,5),wprim(i,1)
+        endif
+
+        enddo
+        
+        close(1)
+        
+        endif
+
+        CALL build_linked_list 
+        
         call hvol(wprim)
         
         if ( igrav .eqv. .true. ) then
@@ -197,10 +231,12 @@
         do i=1,n
 
         call primitive_to_conservative(i,wprim(i,:),u(i,:))
-
+        
         divb(i)=0.0d0
+        if ( .not. restart ) then
         if ( iDedner .eqv. .true. ) then
         psi(i)=0.0d0
+        endif
         endif
         u(i,:)=vol(i)*u(i,:)
         enddo
@@ -208,7 +244,7 @@
         if ( myrank .eq. 0 ) then
         select case (outputtype)  
         case (1)
-!       splash format 
+!       SPLASH format 
         call PDUMP(wprim)
         case (2)
 !       silo format
@@ -221,24 +257,45 @@
         
         call RMDmatrices
         
+        if ( useprimitive .eqv. .true. ) then
+        CALL find_gradients_w(wprim)
+        else
+        CALL find_gradients_u(u)
+        endif
+        
+! evaluation of function gradients
+       
+        if ( useprimitive .eqv. .true. ) then
+        CALL find_limiters_w(wprim)
+        else
+        CALL find_limiters_u(u)
+        endif
+        
         CALL CALCDOTS(u,wprim,psi) 
         
         if ( myrank .eq. 0 ) then
         write(6,*) 'starting main loop...'
         endif
-
+        
+        starttime=MPI_WTIME()
+        
         do while (.true.) 
 
         CALL MAINIT(u,wprim,psi)
         
 ! Main integration loop 
-       
-        if ( T .gt. TF ) THEN  
+
+        endtime=MPI_WTIME()
+        walltime=endtime-starttime
+        
+        if ( t .gt. tf ) THEN 
+        
         if ( myrank .eq. 0 ) then    
-        write(2,*) 'End of integration has been reached:t=',t
+        write(2,fmt="(A,ES12.5)") 'End of integration has been reached:t=',t
+        
         select case (outputtype)  
         case (1)
-!       splash format 
+! SPLASH format 
         call PDUMP(wprim)
         case (2)
 ! silo format
@@ -247,16 +304,20 @@
 ! vtr format 
         call plot(wprim)
         end select 
+        
+        call restartdump(wprim,psi)
         endif
+        
         exit
         endif
-                        
-        enddo 
- 
-        if ( myrank .eq. 0 ) then
+        
+        if ( walltime .gt. maxwalltime ) THEN 
+        
+        if ( myrank .eq. 0 ) then    
+        write(2,fmt="(A,ES12.5)") 'End of integration has been reached:t=',t
         select case (outputtype)  
         case (1)
-!       splash format 
+! SPLASH format 
         call PDUMP(wprim)
         case (2)
 ! silo format
@@ -265,7 +326,29 @@
 ! vtr format 
         call plot(wprim)
         end select 
+        
+        call restartdump(wprim,psi)
         endif
+        
+        exit
+        endif
+        
+                        
+       enddo 
+ 
+!       if ( myrank .eq. 0 ) then
+ !       select case (outputtype)  
+!        case (1)
+!       SPLASH format 
+!        call PDUMP(wprim)
+!        case (2)
+! silo format
+ !       call silo_3d(wprim)
+!        case (3)
+! vtr format 
+!        call plot(wprim)
+!        end select 
+!        endif
         
         call MPI_Finalize(ierr)
 
@@ -327,7 +410,7 @@
         double precision::u(nmax,nv),wprim(nmax,nv),psi(nmax)
                 
 ! ***********************************************************
-!     One full iteration of the hydro code
+!     One full iteration of the MHD code
 ! ***********************************************************   
 
 ! Advance particle positions and velocities:

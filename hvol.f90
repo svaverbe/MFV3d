@@ -130,11 +130,12 @@
         t2=t2+am(j)*DFG(dr,hpi)
         
         endif
+        
         endif
 
         enddo
         
-        select case(hchoice)
+        select case (hchoice)
         case (1)
         ni=float(nopt)*3.0d0/(4*pi)/hpi**3
         case (2)
@@ -143,13 +144,14 @@
         
         select case (hchoice) 
         case (1)
-        omegai=1.0d0-(1.0d0/float(ndim)/ni)*dfloat(nopt)*9.0d0/(4*pi)/hpi**3
+!       omegai=1.0d0-(1.0d0/float(ndim)/ni)*dfloat(nopt)*9.0d0/(4*pi)/hpi**3
+        mydzeta(i)=0.0d0
+        omegai=0.0d0
         case (2)
         omegai=1.0d0-(hpi/float(ndim)/ni)*t1
-        end select 
-        
         mydzeta(i)=am(i)*hpi*t2/omegai/ni/float(ndim)
-
+        end select 
+       
        enddo
        
        call MPI_ALLGATHERV(mydzeta(n_lower),ilen1(myrank), & 

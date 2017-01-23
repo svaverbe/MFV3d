@@ -42,13 +42,13 @@ iwork2=mod(n2-n1+1,nprocs)
  myVudot(1:nv,ista:iend),mylim(1:nv,ista:iend), &
  mygrad(1:ndim,1:nv,ista:iend), &
  myA(1:ndim,1:ndim,ista:iend),mydti(ista:iend),mytau(ista:iend), &
- myvsigmax(ista:iend))
-
- endif 
+ myvsigmax(ista:iend),myconditionnumber(ista:iend))
  
  if ( igrav ) then
  allocate(mydzeta(ista:iend),myphi(ista:iend))
  endif
+
+ endif 
  
  enddo
         

@@ -10,21 +10,26 @@
       include 'mpif.h'
 
       integer::i,j,k,l,in,itab,iopt,ierr
-      double precision::u2,hpi,h2i,h5i,d2,arg, &
+      double precision::u2,hpi,h2i,h3i,h5i,d2,arg, &
       dx,dy,dz
-      double precision::r(ndim),t1,dumA(ndim,ndim,nmax)
-      double precision::dwij
+      double precision::r(ndim),t1,dumA(ndim,ndim,nmax), &
+      B(ndim,ndim),conditionnumber
+      double precision::dwij,wij
 	  
-	  iopt=2
+	  iopt=1
       
       do i=n_lower,n_upper
       
-      myA(:,:,i)=0.0d0
+      select case ( rmdtype )
+      
+      case (1)
+      
+      B(:,:)=0.0d0
       
       hpi=h(i)
       h2i=hpi**2
-      h5i=h2i*h2i*hpi
-	  
+      h3i=h2i*hpi
+
       call LLN(i,iopt,hpi)
      
       do in=1,nbn
@@ -33,9 +38,9 @@
           
           if ( i .ne. j ) then
            
-          dx=x(i,1)-x(j,1)
-          dy=x(i,2)-x(j,2)
-          dz=x(i,3)-x(j,3)
+          dx=x(j,1)-x(i,1)
+          dy=x(j,2)-x(i,2)
+          dz=x(j,3)-x(i,3)
           
           if ( iperiodic .eqv. .true. ) then
           call modbound(dx,dy,dz)
@@ -48,37 +53,106 @@
           IF ( U2 .le. 4.0d0 ) THEN
           arg=CTAB*u2
           ITAB=dint(arg)+1
-          DWIJ=DWTAB(ITAB)/H5I
+          WIJ=WTAB(itab)/h3i
           else
-          DWIJ=0.0d0
+          WIJ=0.0d0
           endif
              
-          t1=-dx**2*dwij    
-          myA(1,1,i)=myA(1,1,i)+vol(j)*t1
-          t1=-dx*dy*dwij
-          myA(1,2,i)=myA(1,2,i)+vol(j)*t1
-          t1=-dx*dz*dwij
-          myA(1,3,i)=myA(1,3,i)+vol(j)*t1
-          t1=-dy**2*dwij
-          myA(2,2,i)=myA(2,2,i)+vol(j)*t1
-          t1=-dx*dz*dwij
-          myA(1,3,i)=myA(1,3,i)+vol(j)*t1
-          t1=-dy*dz*dwij
-          myA(2,3,i)=myA(2,3,i)+vol(j)*t1
-          t1=-dz**2*dwij
-          myA(3,3,i)=myA(3,3,i)+vol(j)*t1
+          t1=dx**2*wij    
+          B(1,1)=B(1,1)+vol(i)*t1
+          t1=dx*dy*wij
+          B(1,2)=B(1,2)+vol(i)*t1
+          t1=dx*dz*wij
+          B(1,3)=B(1,3)+vol(i)*t1
+          t1=dy**2*wij
+          B(2,2)=B(2,2)+vol(i)*t1
+          t1=dy*dz*wij
+          B(2,3)=B(2,3)+vol(i)*t1
+          t1=dz**2*wij
+          B(3,3)=B(3,3)+vol(i)*t1
                 
          endif
        
          enddo
            
-         myA(2,1,i)=myA(1,2,i)
-         myA(3,1,i)=myA(1,3,i)
-         myA(3,2,i)=myA(2,3,i)
-                 
+         B(2,1)=B(1,2)
+         B(3,1)=B(1,3)
+         B(3,2)=B(2,3)
+         
          r(:)=0.0d0
+         
+         myA(:,:,i)=B(:,:)
 
          call gaussj(myA(:,:,i),ndim,ndim,r,1,ndim)
+         
+         myconditionnumber(i)=conditionnumber(myA(:,:,i),B(:,:))
+
+         case (2)
+         
+         B(:,:)=0.0d0
+      
+         hpi=h(i)
+         h2i=hpi**2
+         h5i=h2i*h2i*hpi
+	  
+         call LLN(i,iopt,hpi)
+     
+         do in=1,nbn
+
+         j=nn(in)
+          
+         if ( i .ne. j ) then
+           
+         dx=x(j,1)-x(i,1)
+         dy=x(j,2)-x(i,2)
+         dz=x(j,3)-x(i,3)
+          
+         if ( iperiodic .eqv. .true. ) then
+         call modbound(dx,dy,dz)
+         endif
+            
+         d2=dx**2+dy**2+dz**2
+                  
+         U2=D2/H2I
+
+         IF ( U2 .le. 4.0d0 ) THEN
+         arg=CTAB*u2
+         ITAB=dint(arg)+1
+         DWIJ=DWTAB(ITAB)/H5I
+         else
+         DWIJ=0.0d0
+         endif
+             
+          t1=dx**2*dwij   
+          B(1,1)=B(1,1)+vol(j)*t1
+          t1=dx*dy*dwij
+          B(1,2)=B(1,2)+vol(j)*t1
+          t1=dx*dz*dwij
+          B(1,3)=B(1,3)+vol(j)*t1
+          t1=dy**2*dwij
+          B(2,2)=B(2,2)+vol(j)*t1
+          t1=dy*dz*dwij
+          B(2,3)=B(2,3)+vol(j)*t1
+          t1=dz**2*dwij
+          B(3,3)=B(3,3)+vol(j)*t1
+                
+         endif
+       
+         enddo
+           
+         B(2,1)=B(1,2)
+         B(3,1)=B(1,3)
+         B(3,2)=B(2,3)
+         
+         r(:)=0.0d0
+         
+         myA(:,:,i)=B(:,:)
+
+         call gaussj(myA(:,:,i),ndim,ndim,r,1,ndim)
+         
+         myconditionnumber(i)=conditionnumber(myA(:,:,i),B(:,:))
+         
+         end select 
          
          enddo
          
@@ -141,6 +215,7 @@
       indxr(i)=irow
       indxc(i)=icol 
       if (a(icol,icol) .eq. 0.0d0 ) then
+      write(6,*) 'warning:det=0'
       stop
       endif
       pivinv=1.0d0/a(icol,icol) 
@@ -176,6 +251,7 @@
      
       return 
       END 
+      
 	  
       subroutine coef(i,j,c)
 	  
@@ -185,14 +261,15 @@
 	  
       integer::i,j,itab
       double precision::c(ndim),r(ndim),dx,dy,dz,u2, &
-      d2,h2i,h5i,dwij
+      d2,h2i,h5i,h3i,dwij,wij
 	 
-	  dx=x(i,1)-x(j,1)
-      dy=x(i,2)-x(j,2)
-      dz=x(i,3)-x(j,3)
+	  dx=x(j,1)-x(i,1)
+      dy=x(j,2)-x(i,2)
+      dz=x(j,3)-x(i,3)
 	  
       h2i=h(i)**2
       h5i=h2i**2*h(i)
+      h3i=h2i*h(i)
           
       if ( iperiodic .eqv. .true. ) then
       call modbound(dx,dy,dz)
@@ -204,17 +281,68 @@
 
       IF ( u2 .le. 4.0d0 ) then
       ITAB=INT(CTAB*U2)+1
+      select case ( rmdtype )
+      case (1)
+      WIJ=WTAB(ITAB)/H3I
+      case (2)
       DWIJ=DWTAB(ITAB)/H5I
+      end select 
       else
+      select case (rmdtype )
+      case (1)
+      wij=0.0d0
+      case (2) 
       DWIJ=0.0d0
+      end select 
       endif
+      
+      select case ( rmdtype )
+      
+      case (1)
+      
+      r(1)=dx*wij
+      r(2)=dy*wij
+      r(3)=dz*wij
+      
+      c=vol(i)*matmul(A(i,:,:),r(:))
+      
+      case (2)
          
       r(1)=dx*dwij
-      r(2)=dy*dwij
+      r(2)=dy*dwij     
       r(3)=dz*dwij
-       
+      
       c=vol(j)*matmul(A(i,:,:),r(:))
-         
+
+      end select 
+      
       return
 	 
+      end
+      
+      
+      double precision function conditionnumber(B,C)
+      
+      use wp3d_h
+     
+      integer::i,j
+      double precision::B(ndim,ndim),C(ndim,ndim), &
+      norm1,norm2
+      
+      norm1=0.0d0
+      norm2=0.0d0
+      
+      do i=1,ndim
+      do j=1,ndim
+      
+      norm1=norm1+B(i,j)**2
+      norm2=norm2+C(i,j)**2
+      
+      enddo
+      enddo
+      
+      conditionnumber=dsqrt(norm1*norm2)/float(ndim)
+     
+      return
+      
       end

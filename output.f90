@@ -148,26 +148,27 @@
 
       ebave=ebave/float(n)
       
-      WRITE (2,*) 'OUTPUT: end of iteration ',NIT,' time= ',T
+      WRITE (2,fmt="(A,I8,A,ES12.5)") 'OUTPUT: end of iteration ',NIT,' time= ',t
       WRITE (2,*) 'System box:'
-      WRITE (2,*) XLOW,XHIGH,YLOW,YHIGH,ZLOW,ZHIGH
-      WRITE (2,*) 'rhomin:',RHOMIN,X(IRHOMIN,1),X(IRHOMIN,2),X(IRHOMIN,3)
-      WRITE (2,*) 'rhomax:',RHOMAX,X(IRHOMAX,1),X(IRHOMAX,2),X(IRHOMAX,3)
-      WRITE (2,*) 'hmin:',HPMIN,X(IHPMIN,1),X(IHPMIN,2),X(IHPMIN,3)
-      WRITE (2,*) 'hmax:',HPMAX,X(IHPMAX,1),X(IHPMAX,2),X(IHPMAX,3)
-      WRITE (2,*) 'ebmin:',EBMIN,X(IEBMIN,1),X(IEBMIN,2),X(IEBMIN,3)
-      WRITE (2,*) 'ebmax:',EBMAX,X(IEBMAX,1),X(IEBMAX,2),X(IEBMAX,3)
+      WRITE (2,fmt="(6ES12.5)") XLOW,XHIGH,YLOW,YHIGH,ZLOW,ZHIGH
+      WRITE (2,fmt="(A,4ES12.5)") 'rhomin:',RHOMIN,X(IRHOMIN,1),X(IRHOMIN,2),X(IRHOMIN,3)
+      WRITE (2,fmt="(A,4ES12.5)") 'rhomax:',RHOMAX,X(IRHOMAX,1),X(IRHOMAX,2),X(IRHOMAX,3)
+      WRITE (2,fmt="(A,4ES12.5)") 'hmin:',HPMIN,X(IHPMIN,1),X(IHPMIN,2),X(IHPMIN,3)
+      WRITE (2,fmt="(A,4ES12.5)") 'hmax:',HPMAX,X(IHPMAX,1),X(IHPMAX,2),X(IHPMAX,3)
+      WRITE (2,fmt="(A,4ES12.5)") 'ebmin:',EBMIN,X(IEBMIN,1),X(IEBMIN,2),X(IEBMIN,3)
+      WRITE (2,fmt="(A,4ES12.5)") 'ebmax:',EBMAX,X(IEBMAX,1),X(IEBMAX,2),X(IEBMAX,3)
  
       if ( igrav ) then
-      write(3,fmt='(12(ES18.10))') t,eint,ekin,emag,epot,jtot,ptot,rhomax,mtot,ebmin,ebmax,ebave
+      write(3,fmt='(12(ES12.5))') t,eint,ekin,emag,epot,jtot,ptot,rhomax,mtot,ebmin,ebmax,ebave
       else
-      write(3,fmt='(11(ES18.10))') t,eint,ekin,emag,jtot,ptot,rhomax,mtot,ebmin,ebmax,ebave
+      write(3,fmt='(11(ES12.5))') t,eint,ekin,emag,jtot,ptot,rhomax,mtot,ebmin,ebmax,ebave
       endif
                 
       RETURN
       END
+      
 		
-      SUBROUTINE PDUMP(wprim) 
+        SUBROUTINE PDUMP(wprim) 
 
         use wp3d_h 
 
@@ -176,15 +177,13 @@
         double precision::wprim(nmax,nv),rmax
 
         ndump=ndump+1
-
-        write(6,*) 'writing dump file at t=',t
-        write(2,*) 'writing dump file at t=',t
+        
+        write(6,fmt="(A,ES12.5)") 'writing dump file at t=',t
+        write(2,fmt="(A,ES12.5)") 'writing dump file at t=',t
         
         write(unit=filename, fmt="(A,I0.3,A)") trim(outfn(3)), &
         ndump,".dat"
-        
-!       write(6,*) filename
-     
+
         nacc=0
         nsink=0
 
@@ -193,9 +192,7 @@
         write(12,fmt="(3I8)") n,nacc,nsink
         write(12,fmt="(2ES25.15)") t,gam(1)
      
-        do i=1,n
-        
-! interpolate particle positions and velocities to the current system time 
+        do i=1,n 
         
         write(12,fmt="(14ES25.15)") x(i,1),x(i,2),x(i,3),wprim(i,2), &
         wprim(i,3),wprim(i,4),wprim(i,6),wprim(i,7),wprim(i,8),am(i),h(i), &
@@ -208,7 +205,44 @@
         close(12)
         
         return 
-        END  
+        END 
+
+
+        SUBROUTINE restartdump(wprim,psi) 
+
+        use wp3d_h 
+
+        integer::i
+        character(len=40)::filename
+        double precision::wprim(nmax,nv),psi(nmax),rmax
+
+        write(6,fmt="(A,ES12.5)") 'writing restart dump file at t=',t
+        write(2,fmt="(A,ES12.5)") 'writing restart dump file at t=',t
+        
+        filename="restartdump.dat"
+        
+        open(12,FILE=filename)
+     
+        do i=1,n
+
+        if ( iDedner ) then
+        write(12,fmt="(14ES25.15)") x(i,1),x(i,2),x(i,3),wprim(i,2), &
+        wprim(i,3),wprim(i,4),wprim(i,6),wprim(i,7),wprim(i,8),am(i),h(i), &
+        wprim(i,5),wprim(i,1),psi(i)
+        else
+        write(12,fmt="(13ES25.15)") x(i,1),x(i,2),x(i,3),wprim(i,2), &
+        wprim(i,3),wprim(i,4),wprim(i,6),wprim(i,7),wprim(i,8),am(i),h(i), &
+        wprim(i,5),wprim(i,1)
+        endif
+       
+! SPH particle dump 
+
+        enddo
+        
+        close(12)
+        
+        return 
+        END          
         
                         
         SUBROUTINE plot(wprim)

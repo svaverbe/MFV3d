@@ -6,13 +6,14 @@
         
         include 'mpif.h'
                   
-        double precision::wprim(nmax,nv),dx,dy,dz,d,cij(ndim)
-        double precision::dumgrad(ndim,nv,nmax)
+        double precision::wprim(nmax,nv),cij(ndim)
+        double precision::dumgrad(ndim,nv,nmax),dwij,u2,d2, &
+        dx,dy,dz,arg,h2i,h5i
           
 ! this subroutine computes the gradients of the primitive 
 ! variables for each particle 
           
-        integer::i,j,k,m,idx,iopt,ierr
+        integer::i,j,k,m,idx,iopt,ierr,itab
 		
 		iopt=1
                   
@@ -27,18 +28,47 @@
         do m=1,nbn
           
         idx=nn(m)
-                  
-        dx=x(i,1)-x(idx,1)
-        dy=x(i,2)-x(idx,2)
-        dz=x(i,3)-x(idx,3)
-                  
-        if ( iperiodic .eqv. .true. ) then
-        call modbound(dx,dy,dz)
-        endif
-		
+        
+        if ( myconditionnumber(i) .lt. 10.0d0*ncondcrit ) then
+        
+! renormalized meshless derivative
+                
         call coef(i,idx,cij)
                   
         mygrad(:,k,i)=mygrad(:,k,i)+(wprim(idx,k)-wprim(i,k))*cij(:)
+        
+        else
+        
+! if the condition number if bad, we go for an SPH like gradient estimate
+
+        h2i=h(i)**2
+        h5i=h2i**2*h(i)
+
+        dx=x(idx,1)-x(i,1)
+        dy=x(idx,2)-x(i,2)
+        dz=x(idx,3)-x(i,3)
+          
+        if ( iperiodic .eqv. .true. ) then
+        call modbound(dx,dy,dz)
+        endif
+            
+        d2=dx**2+dy**2+dz**2
+                  
+        U2=D2/H2I
+
+        IF ( U2 .le. 4.0d0 ) THEN
+        arg=CTAB*u2
+        ITAB=dint(arg)+1
+        DWIJ=DWTAB(ITAB)/H5I
+        else
+        DWIJ=0.0d0
+        endiF
+        
+        mygrad(1,k,i)=mygrad(1,k,i)+(wprim(idx,k)-wprim(i,k))*vol(idx)*dx*dwij
+        mygrad(2,k,i)=mygrad(2,k,i)+(wprim(idx,k)-wprim(i,k))*vol(idx)*dy*dwij
+        mygrad(3,k,i)=mygrad(3,k,i)+(wprim(idx,k)-wprim(i,k))*vol(idx)*dz*dwij
+        
+        endif
          
         enddo
                   
@@ -56,6 +86,11 @@
         gradw(i,j,k)=dumgrad(k,j,i)
         enddo
         enddo
+        
+!        do k=1,nv
+!        write(60,*) x(i,:),k,gradw(i,k,:)
+!        enddo
+        
         enddo
         
         return
@@ -72,7 +107,7 @@
         include 'mpif.h'
 
         integer::i,j,m,k,idx,iopt,ierr
-        double precision::u(nmax,nv),dx,dy,dz,d,cij(ndim)
+        double precision::u(nmax,nv),cij(ndim)
         double precision::dumgrad(ndim,nv,nmax)
        
 		iopt=1
@@ -88,17 +123,9 @@
         idx=nn(m)
 		
         call coef(i,idx,cij)
-                  
-        dx=x(i,1)-x(idx,1)
-        dy=x(i,2)-x(idx,2)
-        dz=x(i,3)-x(idx,3)
-                  
-        if ( iperiodic .eqv. .true. ) then
-        call modbound(dx,dy,dz)
-        endif
-                  
+                       
         mygrad(:,k,i)=mygrad(:,k,i)+(u(idx,k)/vol(idx)- &
-        u(i,k)/vol(idx))*cij(:)
+        u(i,k)/vol(i))*cij(:)
          
         enddo
           

@@ -36,7 +36,7 @@
         d0=1.0d0
         nt=nx1*ny1*nz1
         n=nt
-        tf=0.05d0
+        tf=0.1d0
         tprin=0.001d0   
            
         r0=0.1d0
@@ -382,37 +382,39 @@
 
       implicit none
       integer::i,j,k,nint,ni,ncloud,nmedium,nt
-      parameter(nint=100,ni=50000)
-      double precision:: rho0,rcloud,r,xtest,ytest,ztest
-      double precision:: gravity,boltzmann,protonmass,AU
-      double precision:: msun,unitmass,unitvelocity,unittime
-      double precision:: unitsurfacedensity,pbar
-      double precision:: unitlength,unitdensity,unitenergy  
-      double precision:: unitpressure,unitspecificenergy
-      double precision:: tff,temp,radius,mass,om,mcloud
-      double precision:: meanweight,Prot,mcrit,mu,c1, &
+      parameter(nint=100,ni=125000)
+      double precision::rho0,rcloud,r,xtest,ytest,ztest
+      double precision::gravity,boltzmann,protonmass,AU
+      double precision::msun,unitmass,unitvelocity,unittime
+      double precision::unitsurfacedensity,pbar
+      double precision::unitlength,unitdensity,unitenergy  
+      double precision::unitpressure,unitspecificenergy
+      double precision::tff,temp,radius,mass,om,mcloud
+      double precision::meanweight,Prot,mcrit,mu,c1, &
       unitBfield,mu0,dens,hini,parsec,rotratio,thetaoblique, &
       bx,bz,bmag
       double precision::wprim(nmax,nv)
 
        gravity=6.672d-8
        boltzmann=1.3806d-16
-       protonmass=1.6726d-27
-       meanweight=2.0d0*protonmass
+       protonmass=1.6726d-24
+       meanweight=2.33d0*protonmass
        mu0=1.0d0
        gam(:)=1.0d0
-       rhocrit1=1.0d-10
+       eostype=2
+       
+       rhocrit1=1.0d-13
        rhocrit2=5.7d-5
        rhocrit3=1.0d0
 
        fname="magcol"
            
-       xmin=-2.0d0
-       xmax=2.0d0
-       ymin=-2.0d0
-       ymax=2.0d0
-       zmin=-2.0d0
-       zmax=2.0d0
+       xmin=-3.0d0
+       xmax=3.0d0
+       ymin=-3.0d0
+       ymax=3.0d0
+       zmin=-3.0d0
+       zmax=3.0d0
 
        iperiodic=.true. 
        periodictypex=1
@@ -422,20 +424,15 @@
        boxx=xmax-xmin
        boxy=ymax-ymin
        boxz=zmax-zmin
-       nmedium=50
+       
+!      nmedium=50
+       nmedium=40
        nt=nmedium**3
        voltot=boxx*boxy*boxz
-       hini=0.1d0
+       hini=0.05d0
        parsec=3.08567758d+18
-       tf=1.25d0
-       tprin=0.01d0 
-	   
-! temperature of the cloud in K
-
-! physical constants in SI units
-
-! the astronomical unit in cm
-
+       tf=1.5d0
+       tprin=0.01d0
        msun=1.98892d+33
 
 !      mass of the sun in g
@@ -477,12 +474,14 @@
        Prot=2*pi/om/unittime
 ! rotational period of the cloud
 	   
-       mu=5
+       mu=20
        c1=0.53d0
        bmag=3*mass/(2*pi*mu*c1*radius**2)* &
        (pi*gravity*mu0/5)**(1.0d0/2.0d0)
        bmag=bmag/unitbfield
-       thetaoblique=pi/4
+!      bmag=0.0d0
+!      thetaoblique=pi/4
+       thetaoblique=0.0d0
 ! angle between the rotational axis and the direction of the magnetic field vector
  
        rho0=rho0/unitdensity
@@ -491,17 +490,17 @@
                  
 ! rotational period of the cloud 
 
-      write(1,*) 'unit of time(yrs)=',unittime/(24*365*3600)
-      write(1,*) 'unit of velocity=',unitvelocity
-      write(1,*) 'unit of density=',unitdensity
-      write(1,*) 'unit of pressure=',unitpressure
-      write(1,*) 'unit of specific energy',unitspecificenergy
-      write(1,*) 'gravity constant in code units=',G    
-      write(1,*) 'rho0:',rho0*unitdensity
-      write(1,*) 'initial temperature(Kelvin):',temp
-      write(1,*) 'unitsurfacedensity:',unitsurfacedensity
-      write(1,*) 'unit of magnetic field(Gauss)(µG):',unitBfield*10000.0d0*1.0d+6
-      write(1,*) 'initial magnetic field strength(µG):',bz*unitbfield*10000.0*1.0d+6
+       write(1,*) 'unit of time(yrs)=',unittime/(24*365*3600)
+       write(1,*) 'unit of velocity=',unitvelocity
+       write(1,*) 'unit of density=',unitdensity
+       write(1,*) 'unit of pressure=',unitpressure
+       write(1,*) 'unit of specific energy',unitspecificenergy
+       write(1,*) 'gravity constant in code units=',G    
+       write(1,*) 'rho0:',rho0*unitdensity
+       write(1,*) 'initial temperature(Kelvin):',temp
+       write(1,*) 'unitsurfacedensity:',unitsurfacedensity
+       write(1,*) 'unit of magnetic field(Gauss)(µG):',unitBfield*1.0d+6
+       write(1,*) 'initial magnetic field strength(µG):',bmag*unitBfield*1.0d+6
 
 ! initial homogeneous density of the cloud 
 
@@ -513,8 +512,8 @@
        mcrit=pi**(3./2.)*(c0*unitvelocity)**3/(2*nopt*gravity**(3./2.)* &
        dsqrt(rhocrit1*unitdensity))/unitmass
         
-       write(2,*) 'critical density( g cm-3)',rhocrit4*unitdensity
-       write(2,*) 'critical particle mass',mcrit
+       write(1,*) 'critical density( g cm-3)',rhocrit4*unitdensity
+       write(1,*) 'critical particle mass',mcrit
 
        dx1=boxx/float(nmedium)
        dy1=dx1
@@ -523,6 +522,9 @@
        exterior(:)=.false. 
 
         n=ncloud
+        
+        bx=bmag*dsin(thetaoblique)/dsqrt(4*pi)
+        bz=bmag*dcos(thetaoblique)/dsqrt(4*pi)
 
         do i=1,ncloud
                 
@@ -531,12 +533,13 @@
         wprim(i,2)=-2*pi*x(i,2)/Prot
         wprim(i,3)=2*pi*x(i,1)/Prot
         wprim(i,4)=0.0d0
+
+        wprim(i,2:4)=0.0d0
                    
         wprim(i,5)=pbar(i,wprim(i,1))
-		
-        bx=bmag*dsin(thetaoblique)
-        bz=bmag*dcos(thetaoblique)
-          
+        
+        gam(i)=5.0d0/3.0d0
+	
         wprim(i,6)=bx
         wprim(i,7)=0.0d0
         wprim(i,8)=bz
@@ -567,12 +570,14 @@
        x(n,3)=ztest
            
        wprim(n,1)=rho0/30.0d0
+       
+       gam(n)=5.0d0/3.0d0
           
        wprim(n,2:4)=0.0d0 
 
        wprim(n,5)=pbar(n,wprim(n,1))        
           
-       wprim(n,6)=0.0d0
+       wprim(n,6)=bx
        wprim(n,7)=0.0d0
        wprim(n,8)=bz
            
@@ -585,18 +590,22 @@
       enddo     
 
       do i=1,n
-
+      
+      if ( barotropic ) then
       cs(i)=dsqrt(wprim(i,5)/wprim(i,1))
+      else
+      cs(i)=dsqrt(gam(i)*wprim(i,5)/wprim(i,1))
+      endif
                
       enddo
                
-      write(2,*) 'number of particles inside the cloud:',ncloud
+      write(1,*) 'number of particles inside the cloud:',ncloud
   
       return
           
       end
-	  
-	  
+      
+    
       SUBROUTINE setupem1(ni,ncloud)  
 
       use wp3d_h  
@@ -606,16 +615,14 @@
 ! sets up a particle distribution in 3D 
 ! particles are placed on a stretched grid 
                         
-      double precision:: avec(3),bvec(3),cvec(3)
-      double precision:: space,xp,yp,zp
-      double precision:: r,rns
+      double precision::avec(3),bvec(3),cvec(3)
+      double precision::space,xp,yp,zp
+      double precision::r,rns
       INTEGER::maxn,i,idum,k,l,m,ni,ncloud
               
 ! setup particles on a hexagonal lattice
 
-      rns=10.0d0
- !    mcloud=1.0d0
- !    amns=mcloud
+      rns=1.0d0
       avec(1)=1.0d0
       avec(2)=0.0d0
       avec(3)=0.0d0
@@ -630,7 +637,7 @@
 ! The factor 1.23 makes sure to catch all points
 
       maxn=int(1.23*rns/space)
-      write (6,*)' maxn: ',maxn,' spacing: ',space
+!      write (6,*)' maxn: ',maxn,' spacing: ',space
       i=0
       idum=-2391
      
@@ -660,7 +667,7 @@
          enddo
       enddo
       ncloud=i
-      write (6,*)'number of particles within rns: ',i
+!      write (6,*)'number of particles within rns: ',i
        
       return
                                                                    
@@ -695,7 +702,7 @@
         boltzmann=1.3806d-16
         protonmass=1.6726d-24
         gam(:)=5.0d0/3.0d0
-        hini=0.1d0
+        hini=0.5d0
         iperiodic=.true. 
         periodictypex=1
         periodictypey=1
@@ -752,8 +759,8 @@
          rho0=mass/(2*pi*(radius**3))/unitdensity
          utherm=0.05d0*gravity*mass/radius/unitspecificenergy 
          rcloud=radius/unitlength
-         tf=1.25d0
-         tprin=0.05d0
+         tf=0.01d0
+         tprin=0.01d0
 
 ! initial temperature
 
@@ -935,7 +942,7 @@
        enddo
        ncloud=i
 	   
-       write (6,*)'number of particles within rns: ',i
+!       write (6,*)'number of particles within rns: ',i
 	   
        if ( stretch .eqv. .true. ) then
 
